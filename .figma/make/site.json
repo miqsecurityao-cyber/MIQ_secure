@@ -1,0 +1,10 @@
+{
+  "description": "Gestão interna segura e eficiente das atividades comerciais para empresas de segurança eletrónica, com controle de acessos, pedidos, orçamentos e relatórios.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
