@@ -642,6 +642,7 @@ function DashboardView({
   const quoteDocumentRef = useRef<HTMLElement | null>(null)
   const [formType, setFormType] = useState<FormType>(null)
   const [editingRequestId, setEditingRequestId] = useState<string | null>(null)
+  const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null)
   const [requestClient, setRequestClient] = useState("")
   const [requestService, setRequestService] = useState("")
   const [requestDiagnosticDate, setRequestDiagnosticDate] = useState("")
@@ -767,6 +768,7 @@ function DashboardView({
 
   function openForm(type: Exclude<FormType, null>) {
     setEditingRequestId(null)
+    setEditingQuoteId(null)
     setRequestClient("")
     setRequestService("")
     setRequestDiagnosticDate("")
@@ -784,12 +786,68 @@ function DashboardView({
 
   function openRequestEditor(request: Request) {
     setEditingRequestId(request.id)
+    setEditingQuoteId(null)
     setRequestClient(request.client)
     setRequestService(request.service)
     setRequestDiagnosticDate(request.diagnosticDate ?? "")
     setRequestInstallationDate(request.installationDate ?? "")
     setRequestStatus(request.status)
     setFormType("requests")
+  }
+
+  function openQuoteEditor(quote: Quote) {
+    const items = quote.items?.length
+      ? quote.items
+      : quote.amount > 0
+        ? [{
+            description: quote.service,
+            quantity: 1,
+            unitPrice: quote.amount,
+            category: "material" as const,
+          }]
+        : []
+    const installationItem = items.find(
+      (item) =>
+        item.category === "cost" &&
+        item.description.toLocaleLowerCase("pt-AO") === "instalação" &&
+        item.quantity === 1,
+    )
+    const transportItem = items.find(
+      (item) =>
+        item.category === "cost" &&
+        item.description.toLocaleLowerCase("pt-AO") === "transporte" &&
+        item.quantity === 1,
+    )
+    const association = quote.requestId && requests.some((request) => request.id === quote.requestId)
+      ? `request:${quote.requestId}`
+      : quote.clientId && clients.some((client) => client.id === quote.clientId)
+        ? `client:${quote.clientId}`
+        : ""
+
+    setEditingRequestId(null)
+    setEditingQuoteId(quote.id)
+    setQuoteClient(quote.client)
+    setQuoteService(quote.service)
+    setQuoteAssociation(association)
+    setQuoteMaterials(items
+      .filter((item) => item.category === "material")
+      .map((item) => ({
+        id: nextQuoteLineId.current++,
+        description: item.description,
+        quantity: String(item.quantity),
+        unitPrice: String(item.unitPrice),
+      })))
+    setQuoteInstallationCost(installationItem ? String(installationItem.unitPrice) : "")
+    setQuoteTransportCost(transportItem ? String(transportItem.unitPrice) : "")
+    setQuoteAdditionalCosts(items
+      .filter((item) => item.category === "cost" && item !== installationItem && item !== transportItem)
+      .map((item) => ({
+        id: nextQuoteLineId.current++,
+        description: item.description,
+        quantity: String(item.quantity),
+        unitPrice: String(item.unitPrice),
+      })))
+    setFormType("quotes")
   }
 
   function changeRequestStatus(request: Request, status: string) {
@@ -986,26 +1044,40 @@ function DashboardView({
         return
       }
 
-      const nextNumber = quotes.length + 1
+      const existingQuote = editingQuoteId
+        ? quotes.find((quote) => quote.id === editingQuoteId)
+        : undefined
+      if (editingQuoteId && !existingQuote) {
+        setNotice("Não foi possível editar o orçamento porque já não existe.")
+        return
+      }
+
       const [associationType, associationId] = quoteAssociation.split(":")
       const quote: Quote = {
-        id: `ORC-${year}-${String(nextNumber).padStart(3, "0")}`,
+        id: existingQuote?.id ?? `ORC-${year}-${String(quotes.length + 1).padStart(3, "0")}`,
         client: quoteClient.trim(),
         clientId: associationType === "client" ? associationId : undefined,
         requestId: associationType === "request" ? associationId : undefined,
         service: quoteService.trim(),
         amount,
-        status: "Rascunho",
-        createdAt: today,
+        status: existingQuote?.status ?? "Rascunho",
+        createdAt: existingQuote?.createdAt ?? today,
+        installationDate: existingQuote?.installationDate,
         items,
       }
-      setQuotes((current) => [quote, ...current])
-      setSelectedQuote(quote)
-      setNotice("Orçamento criado. Pode imprimir ou guardar como PDF.")
+      if (existingQuote) {
+        setQuotes((current) => current.map((item) => item.id === quote.id ? quote : item))
+        setNotice(`Orçamento ${quote.id} atualizado.`)
+      } else {
+        setQuotes((current) => [quote, ...current])
+        setSelectedQuote(quote)
+        setNotice("Orçamento criado. Pode imprimir ou guardar como PDF.")
+      }
     }
 
     setSearch("")
     setFormType(null)
+    setEditingQuoteId(null)
   }
 
   async function downloadSelectedQuote() {
@@ -1553,7 +1625,21 @@ function DashboardView({
                             </select>
                           </td>
                           <td className="quote-time">{formatDate(quote.createdAt)}</td>
-                          <td><button className="quote-print-button" type="button" onClick={() => setSelectedQuote(quote)}>Ver / imprimir</button></td>
+                          <td>
+                            <div className="request-actions">
+                              <button
+                                className="request-action-button"
+                                type="button"
+                                onClick={() => openQuoteEditor(quote)}
+                                aria-label={`Editar orçamento ${quote.id}`}
+                              >
+                                <Pencil size={12} /> Editar
+                              </button>
+                              <button className="quote-print-button" type="button" onClick={() => setSelectedQuote(quote)}>
+                                Ver / imprimir
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                       {matchingQuotes.length === 0 && (
@@ -1584,9 +1670,15 @@ function DashboardView({
                 <h2 id="quote-dialog-title">
                   {formType === "requests"
                     ? editingRequestId ? "Editar pedido" : "Novo pedido"
-                    : "Novo orçamento"}
+                    : editingQuoteId ? "Editar orçamento" : "Novo orçamento"}
                 </h2>
-                <p>{editingRequestId ? "Atualize os dados e o estado do pedido." : "Preencha os dados para guardar neste navegador."}</p>
+                <p>
+                  {editingRequestId
+                    ? "Atualize os dados e o estado do pedido."
+                    : editingQuoteId
+                      ? "Edite os dados e os elementos do orçamento."
+                      : "Preencha os dados para guardar neste navegador."}
+                </p>
               </div>
               <button className="dialog-close" type="button" aria-label="Fechar" onClick={() => setFormType(null)}>×</button>
             </div>
@@ -1720,7 +1812,7 @@ function DashboardView({
                       value={quoteClient}
                       onChange={(event) => setQuoteClient(event.target.value)}
                       placeholder="Nome do cliente"
-                      readOnly={quoteAssociation !== ""}
+                      readOnly={quoteAssociation !== "" && !editingQuoteId}
                     />
                   </label>
                   <label>
@@ -1730,7 +1822,7 @@ function DashboardView({
                       value={quoteService}
                       onChange={(event) => setQuoteService(event.target.value)}
                       placeholder="Serviço proposto"
-                      readOnly={quoteAssociation.startsWith("request:")}
+                      readOnly={quoteAssociation.startsWith("request:") && !editingQuoteId}
                     />
                   </label>
                   <section className="quote-composition-section" aria-labelledby="quote-materials-heading">
@@ -1916,7 +2008,7 @@ function DashboardView({
                 <button className="dashboard-primary-button" type="submit">
                   {formType === "requests"
                     ? editingRequestId ? "Guardar alterações" : "Registar pedido"
-                    : "Criar orçamento"}
+                    : editingQuoteId ? "Guardar alterações" : "Criar orçamento"}
                 </button>
               </div>
             </form>

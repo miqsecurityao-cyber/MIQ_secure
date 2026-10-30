@@ -1610,6 +1610,10 @@ input:focus-visible {
   font-size: 7px;
 }
 
+.quotes-table .request-actions {
+  flex-wrap: wrap;
+}
+
 .request-actions {
   display: flex;
   align-items: center;
