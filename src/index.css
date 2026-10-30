@@ -1449,15 +1449,19 @@ input:focus-visible {
 }
 
 .quotes-table-wrap {
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
+  overscroll-behavior-x: contain;
 }
 
 .quotes-list-panel .quotes-table {
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 .quotes-table {
   width: 100%;
+  min-width: 1000px;
   border-collapse: collapse;
   text-align: left;
   white-space: nowrap;
@@ -2124,6 +2128,10 @@ input:focus-visible {
     grid-template-columns: 215px minmax(0, 1fr);
   }
 
+  .service-dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .dashboard-topbar {
     padding: 0 25px;
   }
@@ -2171,6 +2179,11 @@ input:focus-visible {
     display: flex;
     gap: 3px;
     overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .dashboard-nav::-webkit-scrollbar {
+    display: none;
   }
 
   .dashboard-nav-link {
@@ -2223,10 +2236,6 @@ input:focus-visible {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .quotes-list-panel .quotes-table {
-    min-width: 760px;
-  }
-
 }
 
 @media (max-width: 520px) {
@@ -2240,9 +2249,9 @@ input:focus-visible {
   }
 
   .dashboard-nav-link {
-    min-height: 33px;
-    padding: 0 8px;
-    font-size: 8px;
+    min-height: 40px;
+    padding: 0 10px;
+    font-size: 9px;
   }
 
   .dashboard-nav-link svg {
@@ -2259,6 +2268,7 @@ input:focus-visible {
 
   .dashboard-search {
     width: 100%;
+    height: 40px;
     padding: 0 8px;
   }
 
@@ -2412,6 +2422,187 @@ input:focus-visible {
 
   .quote-document-meta {
     gap: 24px;
+  }
+
+  .dashboard-mobile-exit {
+    min-height: 40px;
+  }
+
+  .request-action-button,
+  .quote-print-button {
+    min-height: 36px;
+  }
+}
+
+@media (max-width: 820px) {
+  .quotes-table-wrap {
+    overflow: visible;
+  }
+
+  .quotes-table,
+  .quotes-list-panel .quotes-table {
+    display: block;
+    min-width: 0;
+    table-layout: auto;
+    white-space: normal;
+  }
+
+  .quotes-table thead {
+    display: none;
+  }
+
+  .quotes-table tbody {
+    display: grid;
+    gap: 10px;
+  }
+
+  .quotes-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    padding: 13px;
+    border: 1px solid #eaebee;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 2px 5px rgba(23, 28, 35, 0.018);
+  }
+
+  .quotes-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .quotes-table td {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+    padding: 0;
+    border: 0;
+    font-size: 11px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .quotes-table td::before {
+    color: #858991;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+  }
+
+  .requests-table td:nth-child(1)::before { content: "REFERÊNCIA"; }
+  .requests-table td:nth-child(2)::before { content: "CLIENTE"; }
+  .requests-table td:nth-child(3)::before { content: "SERVIÇO"; }
+  .requests-table td:nth-child(4)::before { content: "ESTADO"; }
+  .requests-table td:nth-child(5)::before { content: "DATA DO DIAGNÓSTICO"; }
+  .requests-table td:nth-child(6)::before { content: "REGISTADO"; }
+  .requests-table td:nth-child(7)::before { content: "AÇÕES"; }
+
+  .clients-table td:nth-child(1)::before { content: "PEDIDO"; }
+  .clients-table td:nth-child(2)::before { content: "CLIENTE"; }
+  .clients-table td:nth-child(3)::before { content: "SERVIÇO"; }
+  .clients-table td:nth-child(4)::before { content: "DIA DA INSTALAÇÃO / EXECUÇÃO"; }
+  .clients-table td:nth-child(5)::before { content: "ESTADO"; }
+  .clients-table td:nth-child(6)::before { content: "AÇÕES"; }
+
+  .quotes-data-table td:nth-child(1)::before { content: "REFERÊNCIA"; }
+  .quotes-data-table td:nth-child(2)::before { content: "CLIENTE"; }
+  .quotes-data-table td:nth-child(3)::before { content: "SERVIÇO"; }
+  .quotes-data-table td:nth-child(4)::before { content: "VALOR"; }
+  .quotes-data-table td:nth-child(5)::before { content: "ESTADO"; }
+  .quotes-data-table td:nth-child(6)::before { content: "DATA"; }
+  .quotes-data-table td:nth-child(7)::before { content: "AÇÕES"; }
+
+  .requests-table td:nth-child(3),
+  .requests-table td:nth-child(4),
+  .requests-table td:nth-child(5),
+  .requests-table td:nth-child(7),
+  .clients-table td:nth-child(3),
+  .clients-table td:nth-child(4),
+  .clients-table td:nth-child(5),
+  .clients-table td:nth-child(6),
+  .quotes-data-table td:nth-child(3),
+  .quotes-data-table td:nth-child(5),
+  .quotes-data-table td:nth-child(7) {
+    grid-column: 1 / -1;
+  }
+
+  .quotes-table td.empty-search {
+    grid-column: 1 / -1;
+    font-size: 10px;
+    line-height: 1.6;
+  }
+
+  .quotes-table td.empty-search::before {
+    content: none;
+  }
+
+  .quotes-table .quote-service-cell {
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .quotes-table .quote-status-control,
+  .quotes-table .installation-date-input {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .quotes-table .quote-status-control {
+    font-size: 9px;
+    text-overflow: ellipsis;
+  }
+
+  .quotes-table .request-diagnostic-schedule {
+    width: 100%;
+  }
+
+  .quotes-table .request-actions {
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .quotes-table .quote-time {
+    display: flex;
+  }
+
+  .quote-document-table {
+    width: 100%;
+    table-layout: fixed;
+  }
+
+  .quote-document-table th,
+  .quote-document-table td {
+    padding: 7px 3px;
+    font-size: 9px;
+    overflow-wrap: anywhere;
+  }
+
+  .quote-document-table thead th {
+    font-size: 8px;
+  }
+
+  .quote-document-table th:nth-child(1),
+  .quote-document-table td:nth-child(1) {
+    width: 40%;
+  }
+
+  .quote-document-table th:nth-child(2),
+  .quote-document-table td:nth-child(2) {
+    width: 8%;
+  }
+
+  .quote-document-table th:nth-child(3),
+  .quote-document-table td:nth-child(3) {
+    width: 25%;
+  }
+
+  .quote-document-table th:nth-child(4),
+  .quote-document-table td:nth-child(4) {
+    width: 27%;
   }
 }
 

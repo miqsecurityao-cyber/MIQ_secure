@@ -1332,7 +1332,7 @@ function DashboardView({
                 </button>
               </div>
               <div className="quotes-table-wrap">
-                <table className="quotes-table">
+                <table className="quotes-table requests-table">
                   <thead><tr><th>REFERÊNCIA</th><th>CLIENTE</th><th>TIPO DE PEDIDO / SERVIÇO</th><th>ESTADO / ALTERAR</th><th>DATA DO DIAGNÓSTICO</th><th>REGISTADO</th><th>AÇÕES</th></tr></thead>
                   <tbody>
                     {matchingRequests.map((request) => (
@@ -1469,7 +1469,7 @@ function DashboardView({
               </div>
               <section className="dashboard-panel quotes-panel">
                 <div className="quotes-table-wrap">
-                  <table className="quotes-table">
+                  <table className="quotes-table clients-table">
                     <thead><tr><th>PEDIDO</th><th>CLIENTE</th><th>SERVIÇO</th><th>DIA DA IMPLEMENTAÇÃO / INSTALAÇÃO</th><th>ESTADO</th><th>AÇÕES</th></tr></thead>
                     <tbody>
                       {matchingClientRequests.map((request) => (
@@ -1591,7 +1591,7 @@ function DashboardView({
                   </div>
                 </div>
                 <div className="quotes-table-wrap">
-                  <table className="quotes-table">
+                  <table className="quotes-table quotes-data-table">
                     <thead><tr><th>REFERÊNCIA</th><th>CLIENTE</th><th>SERVIÇO</th><th>VALOR</th><th>ESTADO</th><th>DATA</th><th>AÇÃO</th></tr></thead>
                     <tbody>
                       {matchingQuotes.map((quote) => (
