@@ -1,5 +1,7 @@
 {
-  "description": "Gestão interna segura e eficiente das atividades comerciais para empresas de segurança eletrónica, com controle de acessos, pedidos, orçamentos e relatórios.",
+  "title": "MIQ Security | Espaço Comercial",
+  "description": "Plataforma administrativa da MiQ Security para gerir clientes, pedidos, agendamentos e orçamentos.",
+  "language": "pt-AO",
   "robots": {
     "index": false
   },
