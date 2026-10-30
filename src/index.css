@@ -848,6 +848,15 @@ input:focus-visible {
   color: #b6b8be;
 }
 
+.dashboard-mobile-exit {
+  display: none;
+}
+
+.dashboard-mobile-exit:hover {
+  color: var(--miq-red);
+  background: #fff1f3;
+}
+
 .dashboard-top-actions {
   display: flex;
   align-items: center;
@@ -2172,8 +2181,26 @@ input:focus-visible {
     height: auto;
     min-height: 58px;
     flex-wrap: wrap;
+    justify-content: flex-start;
     gap: 8px;
     padding: 10px 14px;
+  }
+
+  .dashboard-mobile-exit {
+    min-height: 34px;
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 9px;
+    border: 1px solid #f0d7dc;
+    border-radius: 7px;
+    color: #8d2435;
+    background: #fff8f9;
+    font-size: 9px;
+    font-weight: 600;
+    white-space: nowrap;
   }
 
   .dashboard-top-actions {

@@ -14,6 +14,7 @@ import {
   LayoutDashboard,
   LoaderCircle,
   LockKeyhole,
+  LogOut,
   Mail,
   Download,
   Pencil,
@@ -1151,7 +1152,7 @@ function DashboardView({
             </div>
           </div>
           <button className="sidebar-exit" type="button" onClick={onExit}>
-            <ArrowLeft size={16} /> Voltar ao acesso
+            <LogOut size={16} /> Terminar sessão
           </button>
         </div>
       </aside>
@@ -1159,6 +1160,9 @@ function DashboardView({
       <section className="dashboard-main" id="dashboard">
         <header className="dashboard-topbar">
           <div className="dashboard-breadcrumb">MIQ COMMERCIAL <span>/</span> {sectionLabels[activeSection]}</div>
+          <button className="dashboard-mobile-exit" type="button" onClick={onExit}>
+            <LogOut size={15} /> Terminar sessão
+          </button>
           {activeSection !== "dashboard" && <div className="dashboard-top-actions">
             <label className="dashboard-search">
               <Search size={17} />
