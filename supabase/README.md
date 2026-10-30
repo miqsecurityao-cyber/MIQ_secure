@@ -1,9 +1,8 @@
 # Supabase and Vercel setup
 
-These files prepare the database schema and deployment settings. The app still
-uses browser-local storage and is not connected to Supabase; do not use it with
-real or shared production data until authentication and database persistence
-are implemented and tested.
+The app authenticates with Supabase, checks the signed-in user against the
+`miq_admins` allowlist, and reads/writes clients, requests, and quotes in the
+database when Supabase environment variables are configured.
 
 ## Supabase
 
@@ -29,13 +28,25 @@ The migration enables Row Level Security on all application tables. Only user
 IDs explicitly listed in `miq_admins` can read or change clients, requests, and
 quotes. Users cannot add themselves to that allowlist through the app.
 
+6. In Authentication > URL Configuration, set the Site URL to the production
+   Vercel URL and add that URL, plus `http://localhost:8443`, to the allowed
+   redirect URLs. This is required for password-reset links.
+
+Existing browser-local records are not automatically copied. The current
+administrator confirmed that no important local records need migration.
+
 ## Vercel
 
 1. Import `miqsecurityao-cyber/MIQ_secure` into the MIQ-owned Vercel account.
 2. Use the Vite framework preset, build command `pnpm run build`, and output
    directory `dist`.
-3. After the Supabase client and authentication are implemented, configure
-   `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Vercel for the required
-   environments. `.env.example` shows the variable names only.
-4. Do not deploy this version as a production system for real data: its login
-   and records are not yet connected to Supabase.
+3. Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Vercel for
+   Production (and Preview if required). `.env.example` shows the variable
+   names only. Obtain these values from Supabase Project Settings > API.
+4. Add the same variables to a local `.env.local` file to test locally. Never
+   commit `.env.local`.
+5. Redeploy after setting or changing environment variables. Verify admin
+   login, denied access for a non-admin user, record persistence, and logout.
+
+The anon/publishable key is intended for browser use; Row Level Security is
+what protects the database. Never expose the service-role/secret key.

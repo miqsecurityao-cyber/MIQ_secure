@@ -22,62 +22,27 @@ import {
   Sparkles,
   Users,
 } from "lucide-react"
+import {
+  isAuthorizedAdmin,
+  isSupabaseConfigured,
+  loadSupabaseRecords,
+  saveSupabaseRecords,
+  supabaseClient,
+} from "./lib/supabase"
+import type { Client, Quote, QuoteItem, Request, StoredData } from "./lib/supabase"
 
-type View = "login" | "recovery"
-type Notice = { tone: "error" | "info" message: string } | null
+type View = "login" | "recovery" | "password-reset"
+type Notice = { tone: "error" | "info"; message: string } | null
 
-type QuoteItem = {
-  description: string
-  quantity: number
-  unitPrice: number
-  category: "material" | "cost"
-}
 type QuoteLineDraft = {
   id: number
   description: string
   quantity: string
   unitPrice: string
 }
-type Quote = {
-  id: string
-  client: string
-  clientId?: string
-  requestId?: string
-  service: string
-  amount: number
-  status: string
-  createdAt: string
-  installationDate?: string
-  items?: QuoteItem[]
-}
-
-type Client = {
-  id: string
-  name: string
-  email: string
-  phone: string
-  createdAt: string
-}
-
-type Request = {
-  id: string
-  client: string
-  service: string
-  status: string
-  createdAt: string
-  diagnosticDate?: string
-  installationDate?: string
-}
 
 type Section = "dashboard" | "requests" | "clients" | "quotes"
 type FormType = "requests" | "quotes" | null
-
-type StoredData = {
-  clients: Client[]
-  requests: Request[]
-  quotes: Quote[]
-  errors: string[]
-}
 
 const storageKeys = {
   clients: "miq-commercial:clients:v1",
@@ -392,7 +357,7 @@ function LoginView({
   onAuthenticated,
 }: {
   onNavigate: (view: View) => void
-  onAuthenticated: () => void
+  onAuthenticated: (email: string, password: string) => Promise<string | null>
 }) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -400,7 +365,7 @@ function LoginView({
   const [loading, setLoading] = useState(false)
   const [notice, setNotice] = useState<Notice>(null)
 
-  function handleSubmit(event: FormEvent) {
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setNotice(null)
 
@@ -420,43 +385,21 @@ function LoginView({
       return
     }
 
-    if (!import.meta.env.DEV) {
-      setNotice({
-        tone: "error",
-        message:
-          "O acesso administrativo precisa de um serviço seguro de autenticação. Este ambiente ainda não está configurado para iniciar sessão.",
-      })
-      return
-    }
-
-    const temporaryEmail = import.meta.env.VITE_TEMP_AUTH_EMAIL
-      ?.trim()
-      .toLocaleLowerCase("en-US")
-    const temporaryPassword = import.meta.env.VITE_TEMP_AUTH_PASSWORD
-
-    if (!temporaryEmail || !temporaryPassword) {
-      setNotice({
-        tone: "error",
-        message: "O acesso temporário não está configurado neste ambiente.",
-      })
-      return
-    }
-
     setLoading(true)
-    window.setTimeout(() => {
-      setLoading(false)
-      if (
-        email.trim().toLocaleLowerCase("en-US") === temporaryEmail &&
-        password === temporaryPassword
-      ) {
-        onAuthenticated()
-        return
+    try {
+      const error = await onAuthenticated(email.trim(), password)
+      if (error) {
+        setNotice({ tone: "error", message: error })
       }
+    } catch (error) {
+      console.error("Não foi possível iniciar sessão.", error)
       setNotice({
         tone: "error",
-        message: "E-mail ou palavra-passe incorretos.",
+        message: "Não foi possível iniciar sessão. Tente novamente.",
       })
-    }, 700)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -531,21 +474,35 @@ function LoginView({
   )
 }
 
-function RecoveryView({ onNavigate }: { onNavigate: (view: View) => void }) {
+function RecoveryView({
+  onNavigate,
+  onRecover,
+}: {
+  onNavigate: (view: View) => void
+  onRecover: (email: string) => Promise<string | null>
+}) {
   const [email, setEmail] = useState("")
   const [notice, setNotice] = useState<Notice>(null)
+  const [loading, setLoading] = useState(false)
 
-  function recover(event: FormEvent) {
+  async function recover(event: FormEvent) {
     event.preventDefault()
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setNotice({ tone: "error", message: "Introduza um e-mail válido." })
       return
     }
-    setNotice({
-      tone: "info",
-      message:
-        "Se a conta existir, receberá instruções quando o serviço de e-mail estiver configurado.",
-    })
+    setLoading(true)
+    try {
+      const error = await onRecover(email.trim())
+      setNotice(error
+        ? { tone: "error", message: error }
+        : { tone: "info", message: "Se a conta existir, receberá um e-mail com instruções para redefinir a palavra-passe." })
+    } catch (error) {
+      console.error("Não foi possível solicitar a recuperação da palavra-passe.", error)
+      setNotice({ tone: "error", message: "Não foi possível enviar o e-mail de recuperação. Tente novamente." })
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -578,25 +535,107 @@ function RecoveryView({ onNavigate }: { onNavigate: (view: View) => void }) {
           onChange={setEmail}
         />
         <NoticeBox notice={notice} />
-        <button className="primary-button" type="submit">
-          Enviar instruções
+        <button className="primary-button" type="submit" disabled={loading}>
+          {loading ? "A enviar..." : "Enviar instruções"}
         </button>
       </form>
     </div>
   )
 }
 
-function DashboardView({ onExit }: { onExit: () => void }) {
-  const [storedData] = useState(loadStoredData)
+function PasswordResetView({
+  onNavigate,
+  onUpdatePassword,
+}: {
+  onNavigate: (view: View) => void
+  onUpdatePassword: (password: string) => Promise<string | null>
+}) {
+  const [password, setPassword] = useState("")
+  const [confirmation, setConfirmation] = useState("")
+  const [notice, setNotice] = useState<Notice>(null)
+  const [loading, setLoading] = useState(false)
+
+  async function updatePassword(event: FormEvent) {
+    event.preventDefault()
+    if (password.length < 8) {
+      setNotice({ tone: "error", message: "A palavra-passe deve ter pelo menos 8 caracteres." })
+      return
+    }
+    if (password !== confirmation) {
+      setNotice({ tone: "error", message: "As palavras-passe não coincidem." })
+      return
+    }
+
+    setLoading(true)
+    try {
+      const error = await onUpdatePassword(password)
+      if (error) setNotice({ tone: "error", message: error })
+    } catch (error) {
+      console.error("Não foi possível guardar a nova palavra-passe.", error)
+      setNotice({ tone: "error", message: "Não foi possível atualizar a palavra-passe. Solicite um novo link." })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="form-content">
+      <div className="feature-icon"></div>
+      <div className="form-heading">
+        <h1>Definir nova palavra-passe</h1>
+        <p>Escolha uma palavra-passe nova para a conta administrativa.</p>
+      </div>
+      <form onSubmit={updatePassword}>
+        <Field
+          id="new-password"
+          label="Nova palavra-passe"
+          type="password"
+          placeholder="Pelo menos 8 caracteres"
+          icon={<LockKeyhole size={19} />}
+          autoComplete="new-password"
+          value={password}
+          onChange={setPassword}
+        />
+        <Field
+          id="confirm-password"
+          label="Confirmar palavra-passe"
+          type="password"
+          placeholder="Repita a nova palavra-passe"
+          icon={<LockKeyhole size={19} />}
+          autoComplete="new-password"
+          value={confirmation}
+          onChange={setConfirmation}
+        />
+        <NoticeBox notice={notice} />
+        <button className="primary-button" type="submit" disabled={loading}>
+          {loading ? "A atualizar..." : "Guardar nova palavra-passe"}
+        </button>
+      </form>
+      <button className="back-button" type="button" onClick={() => onNavigate("login")}>
+        <ArrowLeft size={18} />
+        Voltar ao login
+      </button>
+    </div>
+  )
+}
+
+function DashboardView({
+  onExit,
+  initialData,
+}: {
+  onExit: () => void
+  initialData: StoredData
+}) {
+  const storedData = initialData
   const [search, setSearch] = useState("")
   const [notice, setNotice] = useState<string | null>(
     storedData.errors.length > 0
       ? [...new Set(storedData.errors)].join(" ")
       : null,
   )
-  const [requests, setRequests] = useState<Request[]>(storedData.requests)
-  const [clients] = useState<Client[]>(storedData.clients)
-  const [quotes, setQuotes] = useState<Quote[]>(storedData.quotes)
+  const [requests, setRequests] = useState<Request[]>(initialData.requests)
+  const [clients] = useState<Client[]>(initialData.clients)
+  const [quotes, setQuotes] = useState<Quote[]>(initialData.quotes)
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null)
   const [isDownloadingQuote, setIsDownloadingQuote] = useState(false)
   const quoteDocumentRef = useRef<HTMLElement | null>(null)
@@ -617,6 +656,7 @@ function DashboardView({ onExit }: { onExit: () => void }) {
   const nextQuoteLineId = useRef(0)
   const [activeSection, setActiveSection] = useState<Section>(getSectionFromHash)
   const skipInitialPersistence = useRef(true)
+  const persistenceQueue = useRef<Promise<void>>(Promise.resolve())
   const normalizedSearch = search.trim().toLocaleLowerCase("pt-AO")
   const matchingRequests = requests.filter((request) =>
     `${request.id} ${request.client} ${request.service} ${request.status} ${request.diagnosticDate ?? ""}`
@@ -1041,6 +1081,17 @@ function DashboardView({ onExit }: { onExit: () => void }) {
   useEffect(() => {
     if (skipInitialPersistence.current) {
       skipInitialPersistence.current = false
+      return
+    }
+
+    if (isSupabaseConfigured()) {
+      const currentData = { clients, requests, quotes }
+      persistenceQueue.current = persistenceQueue.current
+        .then(() => saveSupabaseRecords(currentData))
+        .catch((error: unknown) => {
+          console.error("Não foi possível guardar os registos no Supabase.", error)
+          setNotice("Não foi possível guardar os dados na base de dados. Verifique a ligação e tente novamente.")
+        })
       return
     }
 
@@ -1944,18 +1995,169 @@ function DashboardView({ onExit }: { onExit: () => void }) {
 export default function App() {
   const [view, setView] = useState<View>("login")
   const [showDashboard, setShowDashboard] = useState(false)
+  const [authReady, setAuthReady] = useState(false)
+  const [authNotice, setAuthNotice] = useState<string | null>(null)
+  const [dashboardData, setDashboardData] = useState<StoredData | null>(null)
+  const passwordRecovery = useRef(false)
 
-  function exitDemo() {
-    window.history.replaceState(null, "", window.location.pathname)
-    setShowDashboard(false)
+  async function enterAdminDashboard(userId: string): Promise<string | null> {
+    try {
+      if (!await isAuthorizedAdmin(userId)) {
+        await supabaseClient?.auth.signOut()
+        return "Esta conta não tem autorização de administrador."
+      }
+
+      const records = await loadSupabaseRecords()
+      setDashboardData(records)
+      setAuthNotice(null)
+      window.history.replaceState(null, "", window.location.pathname)
+      setShowDashboard(true)
+      return null
+    } catch (error) {
+      console.error("Não foi possível validar o administrador ou carregar os dados.", error)
+      await supabaseClient?.auth.signOut()
+      return "Não foi possível validar o acesso ou carregar os dados. Tente novamente."
+    }
   }
 
-  function completeLogin() {
+  async function completeLogin(email: string, password: string): Promise<string | null> {
+    if (supabaseClient) {
+      const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password })
+      if (error) {
+        console.error("O Supabase recusou a tentativa de início de sessão.", error)
+        return "E-mail ou palavra-passe incorretos."
+      }
+      if (!data.user) return "O Supabase não devolveu uma conta autenticada."
+      return enterAdminDashboard(data.user.id)
+    }
+
+    if (!import.meta.env.DEV) {
+      return "O acesso administrativo ainda não está configurado com o Supabase."
+    }
+
+    const temporaryEmail = import.meta.env.VITE_TEMP_AUTH_EMAIL
+      ?.trim()
+      .toLocaleLowerCase("en-US")
+    const temporaryPassword = import.meta.env.VITE_TEMP_AUTH_PASSWORD
+    if (!temporaryEmail || !temporaryPassword) {
+      return "O Supabase ainda não está configurado neste ambiente."
+    }
+    if (
+      email.toLocaleLowerCase("en-US") !== temporaryEmail ||
+      password !== temporaryPassword
+    ) {
+      return "E-mail ou palavra-passe incorretos."
+    }
+
+    setDashboardData(loadStoredData())
     window.history.replaceState(null, "", window.location.pathname)
     setShowDashboard(true)
+    return null
   }
 
-  if (showDashboard) return <DashboardView onExit={exitDemo} />
+  async function recoverPassword(email: string): Promise<string | null> {
+    if (!supabaseClient) return "A recuperação de acesso requer a configuração do Supabase."
+
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin,
+    })
+    if (error) {
+      console.error("Não foi possível enviar o e-mail de recuperação.", error)
+      return "Não foi possível enviar o e-mail de recuperação. Tente novamente."
+    }
+    return null
+  }
+
+  async function updatePassword(password: string): Promise<string | null> {
+    if (!supabaseClient) return "O serviço de autenticação não está configurado."
+
+    const { error } = await supabaseClient.auth.updateUser({ password })
+    if (error) {
+      console.error("Não foi possível atualizar a palavra-passe.", error)
+      return "Não foi possível atualizar a palavra-passe. Solicite um novo link de recuperação."
+    }
+
+    const { data, error: userError } = await supabaseClient.auth.getUser()
+    if (userError || !data.user) {
+      console.error("Não foi possível validar a conta após alterar a palavra-passe.", userError)
+      return "A palavra-passe foi atualizada, mas não foi possível validar a conta. Inicie sessão novamente."
+    }
+    return enterAdminDashboard(data.user.id)
+  }
+
+  async function exitDashboard() {
+    if (supabaseClient) {
+      const { error } = await supabaseClient.auth.signOut()
+      if (error) {
+        console.error("Não foi possível terminar a sessão.", error)
+        setAuthNotice("Não foi possível terminar a sessão. Tente novamente.")
+        return
+      }
+    }
+
+    window.history.replaceState(null, "", window.location.pathname)
+    setDashboardData(null)
+    setShowDashboard(false)
+    setView("login")
+    setAuthNotice(null)
+  }
+
+  useEffect(() => {
+    const client = supabaseClient
+    if (!client) {
+      setAuthReady(true)
+      return
+    }
+
+    let active = true
+    const auth = client.auth
+    const { data: { subscription } } = auth.onAuthStateChange((event) => {
+      if (!active) return
+      if (event === "SIGNED_OUT") {
+        setDashboardData(null)
+        setShowDashboard(false)
+        setView("login")
+      }
+      if (event === "PASSWORD_RECOVERY") {
+        passwordRecovery.current = true
+        setDashboardData(null)
+        setShowDashboard(false)
+        setView("password-reset")
+        setAuthReady(true)
+      }
+    })
+
+    async function restoreSession() {
+      const { data, error } = await auth.getSession()
+      if (!active) return
+      if (error) {
+        console.error("Não foi possível restaurar a sessão Supabase.", error)
+        setAuthNotice("Não foi possível verificar a sessão. Tente iniciar sessão novamente.")
+      } else if (data.session) {
+        if (
+          passwordRecovery.current ||
+          new URLSearchParams(window.location.hash.slice(1)).get("type") === "recovery"
+        ) {
+          passwordRecovery.current = true
+          setView("password-reset")
+        } else {
+          const accessError = await enterAdminDashboard(data.session.user.id)
+          if (accessError) setAuthNotice(accessError)
+        }
+      }
+      if (active) setAuthReady(true)
+    }
+
+    void restoreSession()
+    return () => {
+      active = false
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  if (showDashboard && dashboardData) {
+    return <DashboardView onExit={exitDashboard} initialData={dashboardData} />
+  }
 
   return (
     <main className="auth-layout">
@@ -2004,10 +2206,23 @@ export default function App() {
             Interno
           </span>
         </div>
+        {!authReady && (
+          <div className="notice notice-info" role="status">
+            A verificar a sessão administrativa...
+          </div>
+        )}
+        {authNotice && (
+          <NoticeBox notice={{ tone: "error", message: authNotice }} />
+        )}
         {view === "login" && (
           <LoginView onNavigate={setView} onAuthenticated={completeLogin} />
         )}
-        {view === "recovery" && <RecoveryView onNavigate={setView} />}
+        {view === "recovery" && (
+          <RecoveryView onNavigate={setView} onRecover={recoverPassword} />
+        )}
+        {view === "password-reset" && (
+          <PasswordResetView onNavigate={setView} onUpdatePassword={updatePassword} />
+        )}
         <p className="legal">
           © 2026 MiQ Security · Acesso exclusivo ao administrador autorizado
         </p>
