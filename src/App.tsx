@@ -292,8 +292,8 @@ function Logo({ inverse = false }: { inverse?: boolean }) {
         <text className="brand-logo-m" x="0" y="66">M</text>
         <rect className="brand-logo-i" x="75" y="35" width="18" height="31" rx="9" />
         <circle className="brand-logo-accent" cx="84" cy="22" r="9" />
-        <text className="brand-logo-q" x="95" y="66">O</text>
-        <path className="brand-logo-q-accent" d="m143 55 22 18" />
+        <text className="brand-logo-q" x="91" y="66">O</text>
+        <path className="brand-logo-q-accent" d="m137 55 10 8" />
         <text className="brand-logo-security" x="3" y="101">Security</text>
       </svg>
     </div>

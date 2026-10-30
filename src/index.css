@@ -121,12 +121,12 @@ input:focus-visible {
 }
 
 .brand-logo-q {
-  font-size: 80px;
+  font-size: 72px;
 }
 
 .brand-logo-security {
   font-family: "Montserrat", Arial, sans-serif;
-  font-size: 34px;
+  font-size: 36px;
   font-weight: 700;
   letter-spacing: -0.8px;
 }
@@ -139,7 +139,7 @@ input:focus-visible {
   fill: none;
   stroke: #ed3448;
   stroke-linecap: round;
-  stroke-width: 14px;
+  stroke-width: 9px;
 }
 
 .internal-pill {
